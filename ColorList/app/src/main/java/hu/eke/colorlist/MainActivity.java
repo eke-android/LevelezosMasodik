@@ -1,8 +1,14 @@
 package hu.eke.colorlist;
 
+import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -25,15 +31,46 @@ import java.util.Scanner;
 public class MainActivity extends AppCompatActivity {
     private final static String JSON_URL = "https://adobe.github.io/Spry/data/json/array-02.js";
 
+    ArrayList<ColorItem> colorArray;
+    ColorItemAdapter adapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        final Storage storage = new Storage(this);
+        TextView textView = (TextView) findViewById(R.id.hello_text);
+        textView.setText(storage.getEmail());
+        Button logoutButton = (Button) findViewById(R.id.logout_button);
+        logoutButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                storage.clear();
+                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                startActivity(intent);
+                finish();
+            }
+        });
+
+        // Adat
+        colorArray = new ArrayList<>();
+        colorArray.add(new ColorItem("Piros", "#ff0000"));
+        colorArray.add(new ColorItem("Fehér", "#ffffff"));
+        colorArray.add(new ColorItem("Zöld", "#00ff00"));
+
+        // Adapter
+        adapter = new ColorItemAdapter(this, colorArray);
+
+        // AdapterView
+        ListView list = (ListView) findViewById(R.id.list);
+        list.setAdapter(adapter);
     }
 
     public void onLoadClick(View view) {
         // Start download in background
-        downloadJson();
+        GetColorsTask task = new GetColorsTask();
+        task.execute();
     }
 
     @Override
@@ -94,5 +131,30 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
         return items;
+    }
+
+    private class GetColorsTask extends AsyncTask<URL, Integer, String> {
+        protected String doInBackground(URL... urls) {
+            /*int count = urls.length;
+            long totalSize = 0;
+            for (int i = 0; i < count; i++) {
+                totalSize += Downloader.downloadFile(urls[i]);
+                publishProgress((int) ((i / (float) count) * 100));
+                // Escape early if cancel() is called
+                if (isCancelled()) break;
+            }*/
+            return downloadJson();
+        }
+
+        protected void onProgressUpdate(Integer... progress) {
+            //setProgressPercent(progress[0]);
+        }
+
+        protected void onPostExecute(String result) {
+            Log.v("Download", result);
+            ArrayList<ColorItem> newItems = parseJson(result);
+            colorArray.addAll(newItems);
+            adapter.notifyDataSetChanged();
+        }
     }
 }
